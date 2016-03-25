@@ -46,6 +46,7 @@ rhow            = 1025.,              # [kg/m^3] Water density
 porosity        = .4,                 # [-] Sediment porosity
 A               = 100.,               # [-] Constant in formulation for wind velocity threshold based on grain size
 z0              = 1.,                 # [m] Measurement height of wind velocity
+dza             = .01,                # [m] Thickness of active layer
 k               = 0.01,               # [m] Bed roughness
 Cb              = 1.5,                # [-] Constant in formulation for equilibrium sediment concentration
 bi              = 1.,                 # [-] Bed interaction factor

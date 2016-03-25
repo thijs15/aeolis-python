@@ -30,6 +30,7 @@ def initialize(s, p):
     '''
     
     # get model dimensions
+    nx = p['nx']
     ny = p['ny']
     nl = p['nlayers']
     nf = p['nfractions']
@@ -73,7 +74,12 @@ def initialize(s, p):
                 s['mass'][:,:,i,j] = p['rhop'] * p['porosity'] \
                                      * s['thlyr'][:,:,i] * gs[j]
     else:
-        s['mass'][:,:,:,:] = p['bedcomp_file'].reshape(s['mass'].shape)                
+        s['mass'][:,:,:,:] = p['bedcomp_file'].reshape(s['mass'].shape)
+
+    # initialize active layer
+    l = np.log(1.-.99) / p['dza']
+    dzp = np.exp(l * p['layer_thickness'] * np.arange(nl))
+    s['dzp'] = dzp.reshape((1,1,-1)).repeat(ny+1, axis=0).repeat(nx+1, axis=1)
 
     return s
 
@@ -112,36 +118,54 @@ def update(s, p):
     nl = p['nlayers']
     nf = p['nfractions']
 
-    # determine net erosion
+    # reshape mass matrices
     pickup = s['pickup'].reshape((-1,nf))
-
-    # determine total mass that should be exchanged between layers
-    dm = -np.sum(pickup, axis=-1, keepdims=True).repeat(nf, axis=-1)
-    
-    # get erosion and deposition cells
-    ix_ero = dm[:,0] < 0.
-    ix_dep = dm[:,0] > 0.
-    
-    # reshape mass matrix
     m = s['mass'].reshape((-1,nl,nf))
+    dzp = s['dzp'].reshape((-1,nl,1)).repeat(nf, axis=-1)
 
-    # negative mass may occur in case of deposition due to numerics,
-    # which should be prevented
-    m, dm, pickup = prevent_negative_mass(m, dm, pickup)
-    
-    # determine weighing factors
-    d = normalize(m, axis=2)
-    
+    # update bed based on pickup
+    m0 = m.sum(axis=-1, keepdims=True)
+    for i in range(nl):
+        mp = m[:,i,:] * dzp[:,i,:]
+        ix = mp != 0.
+        mf = np.zeros(mp.shape)
+        mf[ix] = np.minimum(1., pickup[ix] / mp[ix])
+        
+        pickup -= mp * mf
+        m[:,i,:] -= mp * mf
+
     # move mass among layers
-    m[:,0,:] -= pickup
-    for i in range(1,nl):
-        m[ix_ero,i-1,:] -= dm[ix_ero,:] * d[ix_ero,i,:]
-        m[ix_ero,i,  :] += dm[ix_ero,:] * d[ix_ero,i,:]
-        m[ix_dep,i-1,:] -= dm[ix_dep,:] * d[ix_dep,i-1,:]
-        m[ix_dep,i,  :] += dm[ix_dep,:] * d[ix_dep,i-1,:]
-    m[ix_dep,-1,:] -= dm[ix_dep,:] * d[ix_dep,-1,:]
-    m[ix_ero,-1,:] -= dm[ix_ero,:] * normalize(p['grain_dist'])[np.newaxis,:].repeat(np.sum(ix_ero), axis=0)
+    for i1 in range(nl):
+        for i2 in range(i1+1,nl):
 
+            d1 = normalize(m[:,i1,:], axis=1)
+            d2 = normalize(m[:,i2,:], axis=1)
+
+            dm = m[:,i1,:].sum(axis=-1, keepdims=True) - m0[:,i1,:]
+            if np.all(dm == 0.):
+                break
+            
+            ix_ero = (dm < 0.).flatten()
+            ix_dep = (dm > 0.).flatten()
+
+            dm[ix_ero,:] = np.minimum(m[ix_ero,i2,:].sum(axis=-1, keepdims=True), dm[ix_ero,:])
+            dmr = dm.repeat(nf, axis=-1)
+            
+            m[ix_ero,i1,:] -= dmr[ix_ero,:] * d2[ix_ero,:]
+            m[ix_ero,i2,:] += dmr[ix_ero,:] * d2[ix_ero,:]
+            m[ix_dep,i1,:] -= dmr[ix_dep,:] * d1[ix_dep,:]
+            m[ix_dep,i2,:] += dmr[ix_dep,:] * d1[ix_dep,:]
+
+    # remove/add mass from/to base layer
+    d = normalize(m[:,-1,:], axis=1)
+    dm = m[:,-1,:].sum(axis=-1, keepdims=True) - m0[:,-1,:]
+    ix_ero = (dm < 0.).flatten()
+    ix_dep = (dm > 0.).flatten()
+    dmr = dm.repeat(nf, axis=-1)
+    
+    m[ix_dep,-1,:] -= dmr[ix_dep,:] * d[ix_dep,:]
+    m[ix_ero,-1,:] -= dmr[ix_ero,:] * normalize(p['grain_dist'])[np.newaxis,:].repeat(np.sum(ix_ero), axis=0)
+        
     # remove tiny negatives
     m = prevent_tiny_negatives(m, p['max_error'])
 

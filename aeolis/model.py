@@ -725,7 +725,7 @@ class AeoLiS(IBmi):
                 
                 # determine pickup and deficit for current fraction
                 Cu_i = s['Cu'][:,:,i].flatten()
-                mass_i = s['mass'][:,:,0,i].flatten()
+                mass_i = (s['mass'][:,:,:,i] * s['dzp']).sum(axis=2).flatten()
                 w_i = w[:,:,i].flatten()
                 pickup_i = (w_i * Cu_i - Ct_i) / p['T'] * self.dt
                 deficit_i = pickup_i - mass_i
@@ -1220,10 +1220,11 @@ class AeoLiSRunner(AeoLiS):
         
         for k in self.p['output_vars']:
             s = self.get_var_shape(k)
-            self.o[k] = dict(min=np.zeros(s) + np.inf,
-                             max=np.zeros(s) - np.inf,
-                             var=np.zeros(s),
-                             sum=np.zeros(s))
+            if isiterable(s):
+                self.o[k] = dict(min=np.zeros(s) + np.inf,
+                                 max=np.zeros(s) - np.inf,
+                                 var=np.zeros(s),
+                                 sum=np.zeros(s))
 
         self.n = 0
 

@@ -77,7 +77,7 @@ def initialize(s, p):
         s['mass'][:,:,:,:] = p['bedcomp_file'].reshape(s['mass'].shape)
 
     # initialize active layer
-    l = np.log(1.-.99) / p['dza']
+    l = np.log(.05) / p['dza']
     dzp = np.exp(l * p['layer_thickness'] * np.arange(nl))
     s['dzp'] = dzp.reshape((1,1,-1)).repeat(ny+1, axis=0).repeat(nx+1, axis=1)
 
@@ -119,8 +119,8 @@ def update(s, p):
     nf = p['nfractions']
 
     # reshape mass matrices
-    pickup = s['pickup'].reshape((-1,nf))
-    m = s['mass'].reshape((-1,nl,nf))
+    pickup = s['pickup'].reshape((-1,nf)).copy()
+    m = s['mass'].reshape((-1,nl,nf)).copy()
     dzp = s['dzp'].reshape((-1,nl,1)).repeat(nf, axis=-1)
 
     # update bed based on pickup
@@ -144,7 +144,7 @@ def update(s, p):
             dm = m[:,i1,:].sum(axis=-1, keepdims=True) - m0[:,i1,:]
             if np.all(dm == 0.):
                 break
-            
+
             ix_ero = (dm < 0.).flatten()
             ix_dep = (dm > 0.).flatten()
 

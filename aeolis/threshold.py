@@ -211,11 +211,10 @@ def compute_salt(s, p):
     nf = p['nfractions']
 
     # compute effect of salt content on shear velocity threshold
-    cs = p['csalt'] * (1. - s['salt'][:,:,:1])
-    CS = 1.03 * np.exp(.1027 * 1e3 * cs).repeat(nf, axis=-1)
+    cs = 1.03 * np.exp(.1027 * 1e3 * s['salt'][:,:,:1]).repeat(nf, axis=-1)
     
     # modify shear velocity threshold
-    s['uth'] *= CS
+    s['uth'] *= cs
 
     return s
 

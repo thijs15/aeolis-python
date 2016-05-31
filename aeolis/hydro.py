@@ -139,6 +139,7 @@ def update(s, p, dt):
     s['moist'][~ix,0] *= np.exp(-F1 * dt)
 
     # salinitation
+    s['salt'] = 1. - s['salt'][:,:,:1] / p['csalt']
     s['salt'][ ix,0] = 1.
     s['salt'][~ix,0] *= np.exp(-F2 * dt)
 
@@ -169,6 +170,9 @@ def update(s, p, dt):
         s['moist'][:,:,0] = np.maximum(0., s['moist'][:,:,0] + (pcp - evo) * dt / p['layer_thickness'])
         s['salt'][:,:,0] = np.minimum(1., s['salt'][:,:,0] + pcp * dt / p['layer_thickness'])
 
+    # convert to salt content
+    s['salt'] = p['csalt'] * (1. - s['salt'][:,:,:1])
+        
     return s
 
 

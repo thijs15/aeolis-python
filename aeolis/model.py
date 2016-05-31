@@ -848,10 +848,13 @@ class AeoLiS(IBmi):
                                    minweight=np.sum(w, axis=-1).min(),
                                    **logprops))
 
+        # compute sediment fluxes
         qs = Ct * s['uws'].reshape(Ct[:,:,:1].shape).repeat(p['nfractions'], axis=-1)
         qn = Ct * s['uwn'].reshape(Ct[:,:,:1].shape).repeat(p['nfractions'], axis=-1)
+        q = np.hypot(qs, qn)
                     
         return dict(Ct=Ct,
+                    q=q,
                     qs=qs,
                     qn=qn,
                     pickup=pickup,
@@ -942,18 +945,9 @@ class AeoLiS(IBmi):
         '''
         
         dims = {}
-        
-        dims.update({v:('ny','nx')
-                     for v in ['x', 'y', 'zb', 'ds', 'dn', 'dsdn', 'dsdni',
-                               'alfa', 'uw', 'uws', 'uwn', 'tau', 'taus', 'taun', 'udir',
-                               'zs', 'Hs']})
-        dims.update({v:('ny','nx','nfractions')
-                     for v in ['Cu', 'Ct', 'qs', 'qn', 'pickup',
-                               'w', 'w_init', 'w_air', 'w_bed', 'uth']})
-        dims.update({v:('ny','nx','nlayers')
-                     for v in ['thlyr', 'moist', 'salt']})
-        dims.update({v:('ny','nx','nlayers','nfractions')
-                     for v in ['mass']})
+
+        for shp, variables in MODEL_STATE.iteritems():
+            dims.update({v:shp for v in variables})
 
         if var is not None:
             if dims.has_key(var):

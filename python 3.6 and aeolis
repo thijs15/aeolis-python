@@ -1,0 +1,34 @@
+When using python v3.6 I had to change the follwoing code in the model.py script in the aeolis module
+
+In def load_restartfile(self, restartfile): 
+
+Search for 
+
+	with open(restartfile, 'r') as fp:
+
+                    state = pickle.load(fp)
+
+Replace for
+
+	with open(restartfile, 'rb') as fp:
+
+                    state = pickle.load(fp, encoding ='bytes')
+
+
+
+In def dump_restartfile(self):
+
+Search for 
+
+with open(restartfile, 'w') as fp:		
+
+Replace for
+
+with open(restartfile, 'wb') as fp:
+
+possible better solution is to implement following code in model.py
+
+if (sys.version_info > (3, 0)):
+    with open(restartfile, 'wb') as fp:
+else:
+    with open(restartfile, 'w') as fp:
